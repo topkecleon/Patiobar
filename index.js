@@ -18,6 +18,7 @@ require('console-stamp')(console, {
 let inactivity = 0;
 let currentVolume = 0;
 let newVolume = 0;
+
 const
     inactivityThreshold = 30, // minutes
     express = require('express'),
@@ -27,25 +28,70 @@ const
     fs = require('fs'),
     child_process = require('child_process'),
 
-    fifo = process.env.PIANOBAR_FIFO || 'ctl',
+    fifo = process.env.HOME + '/Patiobar/ctl',
     listenPort = 80,
 
     patiobarCtl = process.env.HOME + '/Patiobar/patiobar.sh',
-    stationList = process.env.HOME + "/.config/pianobar/stationList",
+    stationList = process.env.HOME + '/.config/pianobar/stationList',
 
-    volumeGetCtl = "/usr/bin/amixer sget 'Master'",
-    volumeSetCtl = "/usr/bin/amixer sset 'Master' ",
+    { controlName: mixerControlName, volumeMin, volumeMax } = getDefaultMixerControl(),
+
+    volumeGetCtl = `/usr/bin/amixer sget '${mixerControlName}'`,
+    volumeSetCtl = `/usr/bin/amixer sset '${mixerControlName}' `,
+
     volumeRegEx = /Front Left: Playback (\d+)/,
-    volumeMax = 65536,
-    volumeMin = 0,
 
     pianobarOffImageURL = '',
 
     currentSongFile = '/run/user/1000/currentSong',
     pausePlayTouchFile = '/run/user/1000/pause'; // perhaps this should move to ./config/patiobar/pause
 
+  console.log(`Mixer Control Name: ${mixerControlName}`);
+  console.log(`Volume Minimum: ${volumeMin}`);
+  console.log(`Volume Maximum: ${volumeMax}`);
+  console.log(`fifo: ${fifo}`);
 // Routing
 app.use(express.static(__dirname + '/views'));
+
+/**
+ * Executes the 'amixer' command to determine the default mixer control name.
+ * @returns {string} The name of the default mixer control (e.g., "Digital", "PCM", "Master").
+ * @throws {Error} If the amixer command fails or the control name cannot be found.
+ */
+function getDefaultMixerControl() {
+  try {
+    // Run 'amixer' with no arguments to get the default mixer's controls.
+    const stdout = child_process.execSync('amixer').toString();
+
+    // Regex to find a line starting with "Simple mixer control" and capture the control name.
+    const nameRegex = /Simple mixer control '([^']*)'/;
+    const nameMatch = stdout.match(nameRegex)[1];
+
+    // Regex to capture the min and max values from the first "Limits" line.
+    const limitsRegex = /Limits: (?:Playback|Capture) (\d+) - (\d+)/;
+    const limitsMatch = stdout.match(limitsRegex);
+
+    if (nameMatch && limitsMatch) {
+      // The captured control name is in the first capturing group of nameMatch.
+      const controlName = nameMatch;
+
+      // Use array destructuring with .map(Number) to get the min and max values.
+      const [, volumeMin, volumeMax] = limitsMatch.map(Number);
+
+      return {
+        controlName,
+        volumeMin,
+        volumeMax
+      };
+    } else {
+      throw new Error('Could not find control name or volume limits in amixer output.');
+    }
+  } catch (error) {
+    // If execSync fails, it throws an error.
+    throw new Error(`Failed to execute amixer command: ${error.message}`);
+  }
+}
+
 
 function isPianobarPlaying() {
     return !fs.existsSync(pausePlayTouchFile);
@@ -96,7 +142,7 @@ function readCurrentSong() {
 
 function clearFIFO() {
     try {
-        child_process.spawnSync('dd', ['if=', fifo, 'iflag=nonblock', 'of=/dev/null']);
+        child_process.spawnSync('dd', [`if=${fifo}`, 'iflag=nonblock', 'of=/dev/null']);
     } catch (err) {
         console.error('EAGAIN type errors happen often (resource not available): ' + err.message);
     }
@@ -128,7 +174,7 @@ function volume(action) {
             }
             break;
         case 'down':
-            if (currentVolume > 0 || newvolume > 0) {
+            if (currentVolume > 0 || newVolume > 0) {
                 newVolume--;
             }
             break;
@@ -145,12 +191,16 @@ function volume(action) {
 }
 
 function setVolume() {
-	if (newVolume != currentVolume) {
-		currentVolume = newVolume;
-  	const setVolume = " " + (Math.floor((volumeMax - volumeMin) * (currentVolume / 100)) + volumeMin);
-    console.info(child_process.execSync(volumeSetCtl + setVolume).toString());
-    console.info('volume set to '+setVolume+" ("+currentVolume+"%)");
-	}
+    try {
+	    if (newVolume != currentVolume) {
+            currentVolume = newVolume;
+            const setVolume = " " + (Math.floor((volumeMax - volumeMin) * (currentVolume / 100)) + volumeMin);
+            console.info(child_process.execSync(volumeSetCtl + setVolume).toString());
+            console.info('volume set to '+setVolume+" ("+currentVolume+"%)");
+	    }
+    } catch(e) {
+        console.error(e);
+    }
 }
 
 function PidoraCTL(action) {
@@ -164,7 +214,7 @@ function PidoraCTL(action) {
             return;
         }
 
-        const buf = new Buffer.from(action);
+        const buf = Buffer.from(action);
         fs.write(fd, buf, 0, action.length, null, function (error, written) {  // is there a need for f(error, written, buffer)
             if (fd) {
                 fs.close(fd, function (err) {
@@ -219,7 +269,8 @@ function ProcessCTL(action) {
                 });
                 io.emit('start', songStatus);
             } else {
-                console.info('Pianobar is already running');
+                console.info('Pianobar is already running - start playing');
+                PidoraCTL('P');
                 return;
             }
 
@@ -309,6 +360,69 @@ function removeSocket(socket, user_id) {
     }
 }
 
+app.post('/ha', (req, res) => {
+    switch (req.query.action) {
+      case 'pause':
+        PidoraCTL('S');
+        break;
+      case 'play':
+        PidoraCTL('P');
+        break;
+      case 'next':
+        PidoraCTL('n');
+        break;
+      default:
+        res.status(400).send(400, "invalid action="+req.query.action+"\n[pause|play|next]\n");
+        return;
+    }
+    res.status(200).send("action="+req.query.action+"\n");
+  });
+
+// triggered by eventcmd.sh or other external drivers
+app.post('/start', function (request, response) {
+    console.info("start: "+request.query.songStationName);
+    const artist = request.query.artist;
+    const title = request.query.title;
+    const album = request.query.album;
+    const coverArt = request.query.coverArt;
+    const rating = request.query.rating;
+    const stationName = request.query.stationName;
+    const songStationName = request.query.songStationName;
+    io.emit('stations', readStations());
+    if (!isPianobarPlaying()) PidoraCTL('P');  // if paused, start playing
+    io.emit('start', {
+        artist: artist,
+        title: title,
+        album: album,
+        coverArt: coverArt,
+        rating: rating,
+        stationName: stationName,
+        songStationName: songStationName,
+        isplaying: isPianobarPlaying(),
+        isrunning: isPianobarRunning()
+    });
+    inactivity = 0;
+    response.send(request.query);
+});
+
+app.post('/lovehate', function (request, response) {   // is there a need for f(request, response)
+    inactivity = 0;
+    const rating = request.query.rating;
+    io.emit('lovehate', {rating: rating});
+    console.log(request.query);
+    response.send(request.query);
+});
+
+app.get('/inactivity', function (request, response) {
+    inactivityTracker();
+    response.send("Inactivity: " + inactivity + "/" + inactivityThreshold + " minutes.\n");
+});
+
+app.get('/refresh', function (request, response) {
+    refresh();
+    response.send('refreshed clients\n');
+});
+
 io.on('connection', function (socket) {
     // remotePort is often Wrong (or at least seemed to be with old library)
     const user_id = socket.request.connection.remoteAddress + ':' + socket.request.connection.remotePort + ' | ' + socket.id;
@@ -387,7 +501,7 @@ io.on('connection', function (socket) {
 
     socket.on('changeStation', function (data) {
         if (!isPianobarRunning()) {
-            console.warn("changeStation startign pianobar");
+            console.warn("changeStation starting pianobar");
             ProcessCTL('start');
         }
         console.info('User request:', data, user_id);
@@ -395,50 +509,6 @@ io.on('connection', function (socket) {
         const cmd = 's' + stationId + '\n';
         PidoraCTL(cmd);
         refresh();
-    });
-
-    app.get('/inactivity', function (request, response) {
-        inactivityTracker();
-        response.send("Inactivity: " + inactivity + "/" + inactivityThreshold + " minutes.\n");
-    });
-
-    app.get('/refresh', function (request, response) {
-        refresh();
-        response.send('refreshed clients\n');
-    });
-
-    // triggered by eventcmd.sh or other external drivers
-    app.post('/start', function (request, response) {
-        const artist = request.query.artist;
-        const title = request.query.title;
-        const album = request.query.album;
-        const coverArt = request.query.coverArt;
-        const rating = request.query.rating;
-        const stationName = request.query.stationName;
-        const songStationName = request.query.songStationName;
-        io.emit('stations', readStations());
-        if (!isPianobarPlaying()) PidoraCTL('P');  // if paused, start playing
-        io.emit('start', {
-            artist: artist,
-            title: title,
-            album: album,
-            coverArt: coverArt,
-            rating: rating,
-            stationName: stationName,
-            songStationName: songStationName,
-            isplaying: isPianobarPlaying(),
-            isrunning: isPianobarRunning()
-        });
-        inactivity = 0;
-        response.send(request.query);
-    });
-
-    app.post('/lovehate', function (request, response) {   // is there a need for f(request, response)
-        inactivity = 0;
-        const rating = request.query.rating;
-        io.emit('lovehate', {rating: rating});
-        console.log(request.query);
-        response.send(request.query);
     });
 
 });
@@ -455,8 +525,8 @@ function notifyStopped() {
 }
 
 function refresh() {
-		const isRunning = isPianobarRunning(false);
-		if (isRunning) {
+	const isRunning = isPianobarRunning(false);
+	if (isRunning) {
 			inactivity = 0;
     }
     io.emit(isRunning ? 'start' : 'stop', readCurrentSong());

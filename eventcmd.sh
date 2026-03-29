@@ -74,6 +74,9 @@ case "$1" in
 	songban)
 		query="/lovehate/?rating=${rating}"
 		clean $query
+		# After banning, pianobar skips to the next song
+		# Wait for the next song to start, then refresh to ensure clients get updated
+		(sleep 3; curl -s "${baseurl}/refresh" >/dev/null 2>&1) &
 		;;
 
 #	songbookmark)

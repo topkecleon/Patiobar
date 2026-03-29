@@ -2,14 +2,16 @@
 
 A web frontend for pianobar, which is a console-based client for Pandora.
 
-Provides a simple way for controlling what is playing on the radio.
+Provides a simple way for controlling what is playing on pianobar (Pandora).
 I use this to allow guests (and myself) to control the music playing
 outside on my patio with their phones.
 
 This program was originally written by
 [Kyle Johnson](https://github.com/kylejohnson/Patiobar)
 and extended and made headless by
-[sig-tesla](https://github.com/sig-tesla/Patiobar).
+[mr-light-show](https://github.com/mr-light-show/Patiobar).
+with additional contributions and improvements by
+[topkecleon](https://github.com/topkecleon/Patiobar).
 This fork modifies the installation script to create a systemd unit to
 automatically start Patiobar at boot time, for dedicated
 pianobar/Patiobar devices (such as Raspberry Pis).
@@ -22,10 +24,10 @@ Debian 12 "Bookworm" in a virtual environment. I run this under a normal
 lingering to start it at boot. If you are using Raspbian/Debian 11 or
 12, these steps should work for you:
 
-Install git, pianobar, and npm:
+Install git, pianobar, curl, and npm:
 
 ```bash
-sudo apt install git npm pianobar
+sudo apt install git curl npm pianobar
 ```
 
 To allow node to bind to port 80:
@@ -37,7 +39,7 @@ sudo setcap cap_net_bind_service=+ep /usr/bin/node
 After this, you can clone the repo and use the installation script:
 
 ```bash
-git clone https://github.com/topkecleon/Patiobar
+git clone https://github.com/mr-light-show/Patiobar
 cd Patiobar
 ./install.sh
 ```
