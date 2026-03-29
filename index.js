@@ -224,7 +224,6 @@ function ProcessCTL(action) {
     switch (action) {
         case 'start':
             if (!isPianobarRunning()) {
-                io.emit('volume', volume('25'));
                 console.info('Starting Pianobar');
                 // pianobar starts in the running state, unless work is done to force it otherwise
                 // but wait for the first start message to change the playing from false to true
@@ -560,6 +559,5 @@ process.on('SIGHUP', function () {
     });
 });
 console.info(patiobarCtl);
-volume("25");
 // start the server after all other code is in place
 server.listen(listenPort);
