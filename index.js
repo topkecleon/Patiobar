@@ -34,8 +34,8 @@ const
     patiobarCtl = process.env.HOME + '/Patiobar/patiobar.sh',
     stationList = process.env.HOME + '/.config/pianobar/stationList',
 
-    volumeGetCtl = '/usr/bin/wpctl get-volume @DEFAULT_SINK',
-    volumeSetCtl = '/usr/bin/wpctl set-volume @DEFAULT_SINK ',
+    volumeGetCtl = '/usr/bin/wpctl get-volume @DEFAULT_SINK@',
+    volumeSetCtl = '/usr/bin/wpctl set-volume @DEFAULT_SINK@ ',
     volumeRegEx = /Volume: (\d+\.\d+)/,
 
     pianobarOffImageURL = '',
