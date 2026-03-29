@@ -34,64 +34,21 @@ const
     patiobarCtl = process.env.HOME + '/Patiobar/patiobar.sh',
     stationList = process.env.HOME + '/.config/pianobar/stationList',
 
-    { controlName: mixerControlName, volumeMin, volumeMax } = getDefaultMixerControl(),
-
-    volumeGetCtl = `/usr/bin/amixer sget '${mixerControlName}'`,
-    volumeSetCtl = `/usr/bin/amixer sset '${mixerControlName}' `,
-
-    volumeRegEx = /Front Left: Playback (\d+)/,
+    volumeGetCtl = '/usr/bin/wpctl get-volume @DEFAULT_SINK',
+    volumeSetCtl = '/usr/bin/wpctl set-volume @DEFAULT_SINK ',
+    volumeRegEx = /Volume: (\d+\.\d+)/,
 
     pianobarOffImageURL = '',
 
     currentSongFile = '/run/user/1000/currentSong',
     pausePlayTouchFile = '/run/user/1000/pause'; // perhaps this should move to ./config/patiobar/pause
 
-  console.log(`Mixer Control Name: ${mixerControlName}`);
-  console.log(`Volume Minimum: ${volumeMin}`);
-  console.log(`Volume Maximum: ${volumeMax}`);
-  console.log(`fifo: ${fifo}`);
+// Initialize volume
+currentVolume = getCurrentVolume();
+newVolume = currentVolume;
+
 // Routing
 app.use(express.static(__dirname + '/views'));
-
-/**
- * Executes the 'amixer' command to determine the default mixer control name.
- * @returns {string} The name of the default mixer control (e.g., "Digital", "PCM", "Master").
- * @throws {Error} If the amixer command fails or the control name cannot be found.
- */
-function getDefaultMixerControl() {
-  try {
-    // Run 'amixer' with no arguments to get the default mixer's controls.
-    const stdout = child_process.execSync('amixer').toString();
-
-    // Regex to find a line starting with "Simple mixer control" and capture the control name.
-    const nameRegex = /Simple mixer control '([^']*)'/;
-    const nameMatch = stdout.match(nameRegex)[1];
-
-    // Regex to capture the min and max values from the first "Limits" line.
-    const limitsRegex = /Limits: (?:Playback|Capture) (\d+) - (\d+)/;
-    const limitsMatch = stdout.match(limitsRegex);
-
-    if (nameMatch && limitsMatch) {
-      // The captured control name is in the first capturing group of nameMatch.
-      const controlName = nameMatch;
-
-      // Use array destructuring with .map(Number) to get the min and max values.
-      const [, volumeMin, volumeMax] = limitsMatch.map(Number);
-
-      return {
-        controlName,
-        volumeMin,
-        volumeMax
-      };
-    } else {
-      throw new Error('Could not find control name or volume limits in amixer output.');
-    }
-  } catch (error) {
-    // If execSync fails, it throws an error.
-    throw new Error(`Failed to execute amixer command: ${error.message}`);
-  }
-}
-
 
 function isPianobarPlaying() {
     return !fs.existsSync(pausePlayTouchFile);
@@ -159,13 +116,6 @@ function clearFIFO() {
 //	})
 //}
 
-function pctVol(vol) {
-    const rel = vol - volumeMin;
-    const range = volumeMax - volumeMin;
-    const pct = ((rel / range) * 100) | 0;
-    return Math.max(0, Math.min(100, pct));
-}
-
 function volume(action) {
     switch (action) {
         case 'up':
@@ -194,13 +144,30 @@ function setVolume() {
     try {
 	    if (newVolume != currentVolume) {
             currentVolume = newVolume;
-            const setVolume = " " + (Math.floor((volumeMax - volumeMin) * (currentVolume / 100)) + volumeMin);
-            console.info(child_process.execSync(volumeSetCtl + setVolume).toString());
-            console.info('volume set to '+setVolume+" ("+currentVolume+"%)");
+            const volValue = currentVolume / 100.0;
+            console.info(child_process.execSync(volumeSetCtl + volValue).toString());
+            console.info('volume set to '+ volValue +" ("+currentVolume+"%)");
 	    }
     } catch(e) {
         console.error(e);
     }
+}
+
+// Gets the current system volume using wpctl.
+function getCurrentVolume() {
+  try {
+    const stdout = child_process.execSync(volumeGetCtl).toString();
+    const match = stdout.match(volumeRegEx);
+    if (match) {
+      const vol = parseFloat(match[1]);
+      return Math.round(vol * 100);
+    } else {
+      throw new Error('Could not parse volume from wpctl output.');
+    }
+  } catch (error) {
+    console.error(`Failed to get volume: ${error.message}`);
+    return 50; // default volume
+  }
 }
 
 function PidoraCTL(action) {
