@@ -346,7 +346,7 @@ app.post('/ha', (req, res) => {
 
 // triggered by eventcmd.sh or other external drivers
 app.post('/start', function (request, response) {
-    console.info("start: "+request.query.title+" by "+request.query.artist+" on station "+request.query.songStationName);
+    console.info("start: "+request.query.title+" by "+request.query.artist+" on station "+request.query.StationName);
     const artist = request.query.artist;
     const title = request.query.title;
     const album = request.query.album;
@@ -368,6 +368,7 @@ app.post('/start', function (request, response) {
         isrunning: isPianobarRunning()
     });
     inactivity = 0;
+    console.info("inactivity reset to 0");
     response.send(request.query);
 });
 
