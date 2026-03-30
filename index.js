@@ -132,9 +132,9 @@ function volume(action) {
             return {'volume': currentVolume};
         default:
         	try {
-        	  newVolume = parseInt(action);
+        	    newVolume = parseInt(action);
         	} catch (error) {
-						console.error("error parsing new volume: "+action+"\n"+error.message);
+				console.error("error parsing new volume: "+action+"\n"+error.message);
         	}
     }
     return {'volume': newVolume};
@@ -145,7 +145,7 @@ function setVolume() {
 	    if (newVolume != currentVolume) {
             currentVolume = newVolume;
             const volValue = currentVolume / 100.0;
-            console.info(child_process.execSync(volumeSetCtl + volValue).toString());
+            child_process.execSync(volumeSetCtl + volValue);
             console.info('volume set to '+ volValue +" ("+currentVolume+"%)");
 	    }
     } catch(e) {
@@ -328,25 +328,25 @@ function removeSocket(socket, user_id) {
 
 app.post('/ha', (req, res) => {
     switch (req.query.action) {
-      case 'pause':
-        PidoraCTL('S');
-        break;
-      case 'play':
-        PidoraCTL('P');
-        break;
-      case 'next':
-        PidoraCTL('n');
-        break;
-      default:
-        res.status(400).send(400, "invalid action="+req.query.action+"\n[pause|play|next]\n");
-        return;
+        case 'pause':
+            PidoraCTL('S');
+            break;
+        case 'play':
+            PidoraCTL('P');
+            break;
+        case 'next':
+            PidoraCTL('n');
+            break;
+        default:
+            res.status(400).send(400, "invalid action="+req.query.action+"\n[pause|play|next]\n");
+            return;
     }
     res.status(200).send("action="+req.query.action+"\n");
   });
 
 // triggered by eventcmd.sh or other external drivers
 app.post('/start', function (request, response) {
-    console.info("start: "+request.query.songStationName);
+    console.info("start: "+request.query.title+" by "+request.query.artist+" on station "+request.query.songStationName);
     const artist = request.query.artist;
     const title = request.query.title;
     const album = request.query.album;
