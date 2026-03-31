@@ -86,7 +86,7 @@
         </div>
         <!-- Navbar -->
         <nav class="navbar fixed-bottom bg-primary" data-bs-theme="dark" ng-controller="SongController">
-            <div class="container-fluid pb-mw">
+            <div class="container-fluid pb-mw" id="navbar-menus">
                 <button type="button" class="navbar-toggler navbar-left mx-2 px-3 py-2" data-bs-toggle="collapse" data-bs-target="#tools">
                     <i class="bi bi-tools"></i>
                 </button>
@@ -94,7 +94,7 @@
                 <button type="button" class="navbar-toggler navbar-right mx-2 px-3 py-2" data-bs-toggle="collapse" data-bs-target="#stations">
                     <i class="bi bi-music-note-list"></i>
                 </button>
-                <div class="collapse navbar-collapse text-start" id="tools" ng-controller="ProcessController">
+                <div class="collapse navbar-collapse text-start" id="tools" ng-controller="ProcessController" data-bs-parent="#navbar-menus">
                     <p></p>
                     <ul class="navbar-nav me-auto">
                         <li class="nav-item" ng-class="{'d-none': !pianobarRunning}">
@@ -140,7 +140,7 @@
                         </li>
                     </ul>
                 </div>
-                <div class="collapse navbar-collapse text-center" id="stations" ng-controller="StationController">
+                <div class="collapse navbar-collapse text-center" id="stations" ng-controller="StationController" data-bs-parent="#navbar-menus">
                     <p></p>
                     <button type="button"
                             class="btn m-1"
@@ -155,7 +155,6 @@
             </div>
         </nav>
         <script src="/socket.io/socket.io.js"></script>
-        <script src="/js/jquery-2.1.1.min.js"></script>
         <script src="/js/angular.min.js"></script>
         <script src="/js/bootstrap.min.js"></script>
         <script src="/js/main.js"></script>
@@ -164,12 +163,6 @@
             if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
                 document.querySelector('html').setAttribute('data-bs-theme', 'dark');
             };
-            // Collapse all menus when/before another one is opened.
-            jQuery('button').click(
-                function(e) {
-                    jQuery('.collapse').collapse('hide');
-                }
-            );
         </script>
     </body>
 </html>
