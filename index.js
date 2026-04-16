@@ -50,6 +50,10 @@ newVolume = currentVolume;
 // Routing
 app.use(express.static(__dirname + '/views'));
 
+app.use('/bootstrap', express.static(__dirname + '/node_modules/bootstrap/dist'));
+app.use('/icons', express.static(__dirname + '/node_modules/bootstrap-icons/font'));
+app.use('/angular', express.static(__dirname + '/node_modules/angular'));
+
 function isPianobarPlaying() {
     return !fs.existsSync(pausePlayTouchFile);
 }
