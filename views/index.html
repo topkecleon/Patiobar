@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" ng-app="patiobarApp">
+<html lang="en">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -30,133 +30,135 @@
         </style>
     </head>
     <body>
-        <!-- Album art. -->
-        <div class="container-fluid g-0 pb-mw" ng-controller="SongController">
-            <!-- Display album art if art is available. -->
-            <img width="100%" class="center-block img-fluid" ng-src="{{src}}" alt="{{alt}}" ng-class="{'d-none': src == ''}">
-            <!-- Display the disc icon if art is not available. -->
-            <svg xmlns="http://www.w3.org/2000/svg" width="100%" fill="currentColor" class="bi bi-disc" viewBox="0 0 16 16" ng-class="{'d-none': src != ''}">
-                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                <path d="M10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0M8 4a4 4 0 0 0-4 4 .5.5 0 0 1-1 0 5 5 0 0 1 5-5 .5.5 0 0 1 0 1m4.5 3.5a.5.5 0 0 1 .5.5 5 5 0 0 1-5 5 .5.5 0 0 1 0-1 4 4 0 0 0 4-4 .5.5 0 0 1 .5-.5"/>
-            </svg>
+        <div id="app">
+            <!-- Album art. -->
+            <div class="container-fluid g-0 pb-mw">
+                <!-- Display album art if art is available. -->
+                <img width="100%" class="center-block img-fluid" :src="src" :alt="alt" :class="{ 'd-none': src === '' }">
+                <!-- Display the disc icon if art is not available. -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="100%" fill="currentColor" class="bi bi-disc" viewBox="0 0 16 16" :class="{ 'd-none': src !== '' }">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                    <path d="M10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0M8 4a4 4 0 0 0-4 4 .5.5 0 0 1-1 0 5 5 0 0 1 5-5 .5.5 0 0 1 0 1m4.5 3.5a.5.5 0 0 1 .5.5 5 5 0 0 1-5 5 .5.5 0 0 1 0-1 4 4 0 0 0 4-4 .5.5 0 0 1 .5-.5"/>
+                </svg>
+            </div>
+            <!-- Controls. -->
+            <div class="container-fluid text-center pb-mw">
+                <!-- Title/artist. -->
+                <div class="row my-4">
+                    <div class="col">
+                        <p class="h5">{{ title }}</p>
+                        <p class="mb-0">{{ artist }}</p>
+                    </div>
+                </div>
+                <!-- "Start pianobar" button. Hidden when running or disconnected. -->
+                <div class="row m-4" v-show="patiobarRunning && !pianobarRunning">
+                    <button type="button" class="btn btn-primary btn-lg" @click="process('start')">
+                        <i class="bi bi-power"></i>
+                        Start
+                    </button>
+                </div>
+                <!-- Play/pause and skip. Hidden when not running. -->
+                <div class="row my-4" v-show="pianobarRunning">
+                    <div class="col"></div>
+                    <div class="col">
+                        <button type="button" class="btn btn-primary btn-lg" @click="togglePausePlay()">
+                            <i class="bi" :class="pianobarPlaying ? 'bi-pause-fill' : 'bi-play-fill'"></i>
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" class="btn btn-primary btn-lg" @click="sendCommand('n')">
+                            <i class="bi bi-skip-forward-fill"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- Volume. Hidden when not running. -->
+                <div class="row align-items-center mx-2" v-show="pianobarRunning">
+                    <div class="col-2 pb-2">
+                        <span style="font-size: 1.5rem;"><i class="bi bi-volume-up-fill"></i></span>
+                    </div>
+                    <div class="col">
+                        <input type="range" v-model="volume" class="form-range" @change="sendCommand('v' + volume)" id="volumeRange" min="0" max="100" step="5">
+                    </div>
+                    <div class="col-2 pb-2">
+                        <span style="font-size: 1.25rem;">{{ volume }}%</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Navbar -->
+            <nav class="navbar fixed-bottom bg-primary" data-bs-theme="dark">
+                <div class="container-fluid pb-mw" id="navbar-menus">
+                    <button type="button" class="navbar-toggler navbar-left mx-2 px-3 py-2" data-bs-toggle="collapse" data-bs-target="#tools">
+                        <i class="bi bi-tools"></i>
+                    </button>
+                    <span class="navbar-brand">patiobar</span>
+                    <button type="button" class="navbar-toggler navbar-right mx-2 px-3 py-2" data-bs-toggle="collapse" data-bs-target="#stations">
+                        <i class="bi bi-music-note-list"></i>
+                    </button>
+                    <div class="collapse navbar-collapse text-start" id="tools" data-bs-parent="#navbar-menus">
+                        <p></p>
+                        <ul class="navbar-nav me-auto">
+                            <li class="nav-item" v-show="pianobarRunning">
+                                <a class="nav-link text-body" href="#" @click.prevent="sendCommand('+')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi mx-2" :class="loved ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'"></i>
+                                    {{ loved ? 'Loved' : 'Love song' }}
+                                </a>
+                            </li>
+                            <li class="nav-item" v-show="pianobarRunning">
+                                <a class="nav-link text-body" href="#" @click.prevent="sendCommand('-')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi bi-hand-thumbs-down mx-2"></i>
+                                    Hate song
+                                </a>
+                            </li>
+                            <li class="nav-item" v-show="pianobarRunning">
+                                <a class="nav-link text-body" href="#" @click.prevent="sendCommand('t')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi bi-ban mx-2"></i>
+                                    Ban song for one month
+                                </a>
+                            </li>
+                            <li class="nav-item" v-show="pianobarRunning">
+                                <a class="nav-link">
+                                    <i class="bi bi-dash-lg mx-2"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-body" href="#" @click.prevent="process(pianobarRunning ? 'stop' : 'start')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="be mx-2" :class="pianobarRunning ? 'bi-arrow-down' : 'bi-arrow-up'"></i>
+                                    {{ pianobarRunning ? 'Stop pianobar' : 'Start pianobar' }}
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-body" href="#" @click.prevent="process('system-reboot')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi bi-arrow-clockwise mx-2"></i>
+                                    Reboot device
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-body" href="#" @click.prevent="process('system-stop')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi bi-power mx-2"></i>
+                                    Shut down device
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="collapse navbar-collapse text-center" id="stations" data-bs-parent="#navbar-menus">
+                        <p></p>
+                        <button type="button"
+                                class="btn m-1"
+                                :class="stationName === station.name ? 'btn-light' : 'btn-outline-light'"
+                                v-for="station in stations"
+                                :key="station.id"
+                                @click="stationName === station.name || changeStation(station.id)"
+                                data-bs-toggle="collapse"
+                                data-bs-target=".navbar-collapse.show">
+                            {{ station.name }}
+                        </button>
+                    </div>
+                </div>
+            </nav>
         </div>
-        <!-- Controls. -->
-        <div class="container-fluid text-center pb-mw" ng-controller="SongController">
-            <!-- Title/artist. -->
-            <div class="row my-4">
-                <div class="col">
-                    <p class="h5">{{title}}</p>
-                    <p class="mb-0">{{artist}}</p>
-                </div>
-            </div>
-            <!-- "Start pianobar" button. Hidden when running or disconnected. -->
-            <div class="row m-4" ng-class="{'d-none': pianobarRunning || !patiobarRunning}" ng-controller="ProcessController">
-                <button type="button" class="btn btn-primary btn-lg" ng-click="process('start')">
-                    <i class="bi bi-power"></i>
-                    Start
-                </button>
-            </div>
-            <!-- Play/pause and skip. Hidden when not running. -->
-            <div class="row my-4" ng-class="{'d-none': !pianobarRunning}">
-                <div class="col">
-                </div>
-                <div class="col">
-                    <button type="button" class="btn btn-primary btn-lg" ng-click="togglePausePlay()">
-                        <i class="bi" ng-class="pianobarPlaying ? 'bi-pause-fill' : 'bi-play-fill'"></i>
-                    </button>
-                </div>
-                <div class="col">
-                    <button type="button" class="btn btn-primary btn-lg" ng-click="sendCommand('n');">
-                        <i class="bi bi-skip-forward-fill"></i>
-                    </button>
-                </div>
-            </div>
-            <!-- Volume. Hidden when not running. -->
-            <div class="row align-items-center mx-2" ng-class="{'d-none': !pianobarRunning}">
-                <div class="col-2 pb-2">
-                    <span style="font-size: 1.5rem;"><i class="bi bi-volume-up-fill"></i></span>
-                </div>
-                <div class="col">
-                    <input type="range" ng-model="volume" class="form-range" ng-change="sendCommand('v'+volume)" id="volumeRange" min="0" max="100" step="5">
-                </div>
-                <div class="col-2 pb-2">
-                    <span style="font-size: 1.25rem;">{{volume}}%</span>
-                </div>
-            </div>
-        </div>
-        <!-- Navbar -->
-        <nav class="navbar fixed-bottom bg-primary" data-bs-theme="dark" ng-controller="SongController">
-            <div class="container-fluid pb-mw" id="navbar-menus">
-                <button type="button" class="navbar-toggler navbar-left mx-2 px-3 py-2" data-bs-toggle="collapse" data-bs-target="#tools">
-                    <i class="bi bi-tools"></i>
-                </button>
-                <span class="navbar-brand">patiobar</span>
-                <button type="button" class="navbar-toggler navbar-right mx-2 px-3 py-2" data-bs-toggle="collapse" data-bs-target="#stations">
-                    <i class="bi bi-music-note-list"></i>
-                </button>
-                <div class="collapse navbar-collapse text-start" id="tools" ng-controller="ProcessController" data-bs-parent="#navbar-menus">
-                    <p></p>
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item" ng-class="{'d-none': !pianobarRunning}">
-                            <a class="nav-link text-body" href="#" ng-click="sendCommand('+');" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
-                                <i class="bi mx-2" ng-class="loved ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'"></i>
-                                {{loved ? 'Loved' : 'Love song'}}
-                            </a>
-                        </li>
-                        <li class="nav-item" ng-class="{'d-none': !pianobarRunning}">
-                            <a class="nav-link text-body" href="#" ng-click="sendCommand('-');" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
-                                <i class="bi bi-hand-thumbs-down mx-2"></i>
-                                Hate song
-                            </a>
-                        </li>
-                        <li class="nav-item" ng-class="{'d-none': !pianobarRunning}">
-                            <a class="nav-link text-body" href="#" ng-click="sendCommand('t');" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
-                                <i class="bi bi-ban mx-2"></i>
-                                Ban song for one month
-                            </a>
-                        </li>
-                        <li class="nav-item" ng-class="{'d-none': !pianobarRunning}">
-                            <a class="nav-link">
-                                <i class="bi bi-dash-lg mx-2"></i>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-body" href="#" ng-click="process(pianobarRunning ? 'stop' : 'start')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
-                                <i class="be mx-2" ng-class="pianobarRunning ? 'bi-arrow-down' : 'bi-arrow-up'"></i>
-                                {{pianobarRunning ? 'Stop pianobar' : 'Start pianobar'}}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-body" href="#" ng-click="process('system-reboot')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
-                                <i class="bi bi-arrow-clockwise mx-2"></i>
-                                Reboot device
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-body" href="#" ng-click="process('system-stop')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
-                                <i class="bi bi-power mx-2"></i>
-                                Shut down device
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                <div class="collapse navbar-collapse text-center" id="stations" ng-controller="StationController" data-bs-parent="#navbar-menus">
-                    <p></p>
-                    <button type="button"
-                            class="btn m-1"
-                            ng-class="stationName == station.name ? 'btn-light' : 'btn-outline-light'"
-                            ng-repeat="station in stations"
-                            ng-click="stationName == station.name || changeStation(station.id);"
-                            data-bs-toggle="collapse"
-                            data-bs-target=".navbar-collapse.show">
-                        {{station.name}}
-                    </button>
-                </div>
-            </div>
-        </nav>
-        <script src="/socket.io/socket.io.js"></script>
-        <script src="/angular/angular.min.js"></script>
         <script src="/bootstrap/js/bootstrap.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="/vue/vue.global.prod.js"></script>
         <script src="/js/main.js"></script>
         <script>
             // Set bootstrap's global light/dark mode based on browser.

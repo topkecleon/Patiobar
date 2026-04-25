@@ -52,7 +52,7 @@ app.use(express.static(__dirname + '/views'));
 
 app.use('/bootstrap', express.static(__dirname + '/node_modules/bootstrap/dist'));
 app.use('/icons', express.static(__dirname + '/node_modules/bootstrap-icons/font'));
-app.use('/angular', express.static(__dirname + '/node_modules/angular'));
+app.use('/vue', express.static(__dirname + '/node_modules/vue/dist'));
 
 function isPianobarPlaying() {
     return !fs.existsSync(pausePlayTouchFile);
@@ -350,7 +350,7 @@ app.post('/ha', (req, res) => {
 
 // triggered by eventcmd.sh or other external drivers
 app.post('/start', function (request, response) {
-    console.info("start: "+request.query.title+" by "+request.query.artist+" on station "+request.query.StationName);
+    console.info("start: "+request.query.title+" by "+request.query.artist+" on station "+request.query.stationName);
     const artist = request.query.artist;
     const title = request.query.title;
     const album = request.query.album;
