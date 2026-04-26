@@ -22,8 +22,7 @@ const app = Vue.createApp({
             alt: '',
             loved: false,
             stationName: '',
-            stations: [],
-            admin: false
+            stations: []
         };
     },
     methods: {
