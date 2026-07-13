@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>patiobar</title>
+        <link rel="stylesheet" href="/bootstrap/css/bootstrap.min.css">
+        <link rel="stylesheet" href="/icons/bootstrap-icons.min.css">
+        <link rel="icon" sizes="any" type="image/svg+xml" href="data:image/svg+xml, %3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cstyle%3E path %7B fill: %23212529; %7D @media (prefers-color-scheme: dark) %7B path %7B fill: %23dee2e6; %7D %7D %3C/style%3E%3Cpath d='M9 13c0 1.105-1.12 2-2.5 2S4 14.105 4 13s1.12-2 2.5-2 2.5.895 2.5 2'/%3E%3Cpath fill-rule='evenodd' d='M9 3v10H8V3z'/%3E%3Cpath d='M8 2.82a1 1 0 0 1 .804-.98l3-.6A1 1 0 0 1 13 2.22V4L8 5z'/%3E%3C/svg%3E">
+        <link rel="icon" type="image/ico" href="/favicon.ico">
+        <style>
+            #pb-navbar {
+                max-width: 32rem;
+                border-radius: 2rem;
+                margin-bottom: 1rem;
+            }
+            #pb-art * {
+                max-height: 100vh;
+                object-fit: contain;
+            }
+            #pb-volume .row {
+                background-color: var(--bs-light);
+                color: var(--bs-dark);
+                border-radius: 2rem;
+                padding: 0.25rem;
+                font-size: 1.25rem;
+                text-align: center;
+            }
+            /* On narrow screens, dock the navbar and always show volume. */
+            @media (max-width: 32rem) {
+                #pb-navbar {
+                    border-radius: 0;
+                    margin-bottom: 0;
+                }
+/*                 #pb-volume {
+                    display: block !important;
+                    height: auto !important;
+                    visibility: visible !important;
+                }
+                #vol-button {
+                    display: none !important;
+                } */
+            }
+            @media (max-width: 24rem) {
+                #pb-volume .col-2 {
+                    display: none;
+                }
+
+            }
+            .btn-menu {
+                font-size: 1.25rem;
+                border-width: 2px;
+                border-radius: 2rem;
+            }
+            .btn-menu[aria-expanded="true"] {
+                background-color: var(--bs-light);
+                color: var(--bs-dark);
+            }
+            .nav-link {
+                color: var(--bs-light);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <!-- Album art. -->
+            <div class="container-fluid g-0" id="pb-art">
+                <!-- Display album art if art is available. -->
+                <img width="100%" class="center-block img-fluid" :src="src" :alt="alt" :class="{ 'd-none': src === '' }">
+                <!-- Display the disc icon if art is not available. -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="100%" fill="currentColor" class="bi bi-disc" viewBox="0 0 16 16" :class="{ 'd-none': src !== '' }">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                    <path d="M10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0M8 4a4 4 0 0 0-4 4 .5.5 0 0 1-1 0 5 5 0 0 1 5-5 .5.5 0 0 1 0 1m4.5 3.5a.5.5 0 0 1 .5.5 5 5 0 0 1-5 5 .5.5 0 0 1 0-1 4 4 0 0 0 4-4 .5.5 0 0 1 .5-.5"/>
+                </svg>
+            </div>
+            <!-- Controls. -->
+            <nav class="navbar bg-primary fixed-bottom mx-auto text-center" id="pb-navbar" data-bs-theme="dark">
+                <div class="px-3 mx-auto mt-1">
+                    <!-- Title/artist. -->
+                    <p class="h4 text-light">{{ title }}</p>
+                    <p class="h6 text-light">{{ artist }}</p>
+                    <p></p>
+                    <!-- "Start pianobar" button. Hidden when running or disconnected. -->
+                    <div v-show="patiobarRunning && !pianobarRunning">
+                        <button type="button" class="btn btn-outline-light btn-menu" @click="process('start')">
+                            <i class="bi bi-power"></i>
+                            Start
+                        </button>
+                        <p></p>
+                    </div>
+                </div>
+                <div class="w-100"></div> <!-- line break -->
+                <div class="container-fluid" id="navbar-menus">
+                    <!-- Tools menu button -->
+                    <button type="button" class="btn btn-outline-light btn-menu" data-bs-toggle="collapse" data-bs-target="#tools">
+                        <i class="bi bi-tools"></i>
+                    </button>
+                    <!-- Volume menu button -->
+                    <button type="button" class="btn btn-outline-light btn-menu" id="vol-button" data-bs-toggle="collapse" data-bs-target="#pb-volume">
+                        <i class="bi bi-volume-up-fill"></i>
+                    </button>
+                    <!-- Play/Pause button -->
+                    <button type="button" class="btn btn-outline-light btn-menu" @click="togglePausePlay()">
+                        <i class="bi" :class="pianobarPlaying ? 'bi-pause-fill' : 'bi-play-fill'"></i>
+                    </button>
+                    <!-- Skip button -->
+                    <button type="button" class="btn btn-outline-light btn-menu" @click="sendCommand('n');">
+                        <i class="bi bi-skip-forward-fill"></i>
+                    </button>
+                    <!-- Stations menu button -->
+                    <button type="button" class="btn btn-outline-light btn-menu" data-bs-toggle="collapse" data-bs-target="#stations">
+                        <i class="bi bi-music-note-list"></i>
+                    </button>
+                    <!-- Volume menu -->
+                    <div class="collapse navbar-collapse" id="pb-volume" data-bs-parent="#navbar-menus">
+                        <div class="row align-items-center mx-auto mt-3">
+                            <div class="col-2">
+                                <i class="bi bi-volume-up-fill"></i>
+                            </div>
+                            <div class="col mt-2">
+                                <input type="range" class="form-range" id="volumeRange" min="0" max="100" step="5" v-model="volume" @change="sendCommand('v' + volume)">
+                            </div>
+                            <div class="col-2">
+                                {{ volume }}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Tools menu -->
+                    <div class="collapse navbar-collapse text-start" id="tools" data-bs-parent="#navbar-menus">
+                        <ul class="navbar-nav me-auto mt-3">
+                            <li class="nav-item" v-show="pianobarRunning">
+                                <a class="nav-link" href="#" @click.prevent="sendCommand('+')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi mx-2" :class="loved ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'"></i>
+                                    {{loved ? 'Loved' : 'Love song'}}
+                                </a>
+                            </li>
+                            <li class="nav-item" v-show="pianobarRunning">
+                                <a class="nav-link" href="#" @click.prevent="sendCommand('-')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi bi-hand-thumbs-down mx-2"></i>
+                                    Hate song
+                                </a>
+                            </li>
+                            <li class="nav-item" v-show="pianobarRunning">
+                                <a class="nav-link" href="#" @click.prevent="sendCommand('t');" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi bi-ban mx-2"></i>
+                                    Ban song for one month
+                                </a>
+                            </li>
+                            <li class="nav-item" v-show="pianobarRunning">
+                                <a class="nav-link">
+                                    <i class="bi bi-dash-lg mx-2"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click.prevent="process(pianobarRunning ? 'stop' : 'start')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="be mx-2" :class="pianobarRunning ? 'bi-arrow-down' : 'bi-arrow-up'"></i>
+                                    {{pianobarRunning ? 'Stop pianobar' : 'Start pianobar'}}
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click.prevent="process('system-reboot')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi bi-arrow-clockwise mx-2"></i>
+                                    Reboot device
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" @click.prevent="process('system-stop')" data-bs-toggle="collapse" data-bs-target=".navbar-collapse.show">
+                                    <i class="bi bi-power mx-2"></i>
+                                    Shut down device
+                                </a>
+                            </li>
+<!--                             <li class="nav-item mt-1 text-center">
+                                <p class="fw-semibold mb-2 text-light">patiobar</p>
+                            </li> -->
+                        </ul>
+                    </div>
+                    <!-- Station menu -->
+                    <div class="collapse navbar-collapse text-center" id="stations" data-bs-parent="#navbar-menus">
+                        <p></p>
+                        <button type="button"
+                                class="btn btn-sm m-1"
+                                :class="stationName === station.name ? 'btn-light btn-selected' : 'btn-outline-light'"
+                                v-for="station in stations"
+                                :key="station.id"
+                                @click="stationName === station.name || changeStation(station.id)"
+                                data-bs-toggle="collapse"
+                                data-bs-target=".navbar-collapse.show">
+                            {{ station.name }}
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+        <script src="/bootstrap/js/bootstrap.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="/vue/vue.global.prod.js"></script>
+        <script src="/js/main.js"></script>
+        <script>
+            // Set bootstrap's global light/dark mode based on browser.
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.querySelector('html').setAttribute('data-bs-theme', 'dark');
+            };
+        </script>
+    </body>
+</html>
